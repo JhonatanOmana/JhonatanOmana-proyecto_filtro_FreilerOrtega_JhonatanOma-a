@@ -484,6 +484,7 @@ BEGIN
 END;
 //
 DELIMITER ;
+
 -- 2. actualizar_direccion_cliente
  DELIMITER //
 CREATE PROCEDURE actualizar_direccion_cliente(
@@ -497,6 +498,7 @@ BEGIN
 END;
 //
 DELIMITER ;
+
 -- 3. eliminar_cliente
  DELIMITER //
 CREATE PROCEDURE eliminar_cliente(
@@ -598,6 +600,7 @@ BEGIN
 END;
 //
 DELIMITER ;
+
 -- 10. eliminar_proveedor
 DELIMITER //
 CREATE PROCEDURE eliminar_proveedor(
@@ -609,7 +612,7 @@ END;
 //
 DELIMITER ;
 
--- 9 
+-- 11
 
  DELIMITER //
 CREATE FUNCTION obtener_nombre_departamento(idDepartamento INT)
@@ -623,7 +626,7 @@ END;
 //
 DELIMITER ;
 
--- 10
+-- 12
 
  DELIMITER //
 CREATE FUNCTION maquinaria_disponible(idMaquinaria INT)
@@ -637,7 +640,7 @@ END;
 //
 DELIMITER ;
 
--- 11
+-- 13
 
  DELIMITER //
 CREATE FUNCTION total_insumos_proveedor(idProveedor INT)
@@ -651,7 +654,7 @@ END;
 //
 DELIMITER ;
 
--- 12
+-- 14
 
  DELIMITER //
 CREATE FUNCTION pedidos_pendientes_cliente(idCliente INT)
@@ -668,7 +671,8 @@ END;
 DELIMITER ;
 
 
--- 13
+-- 15
+
  DELIMITER //
 CREATE FUNCTION obtener_correo_empleado(idEmpleado INT)
 RETURNS VARCHAR(80)
@@ -680,3 +684,183 @@ BEGIN
 END;
 //
 DELIMITER ;
+
+-- TRIGGERS 
+
+-- 1 insertar_cliente
+DELIMITER //
+CREATE PROCEDURE insertar_cliente(
+    IN p_nombre VARCHAR(80),
+    IN p_apellido VARCHAR(80),
+    IN p_cedula VARCHAR(80),
+    IN p_correo VARCHAR(80),
+    IN p_direccion VARCHAR(80)
+)
+BEGIN
+    INSERT INTO clientes (nombre, apellido, cedula, correo, direccion) 
+    VALUES (p_nombre, p_apellido, p_cedula, p_correo, p_direccion);
+END;
+//
+DELIMITER ;
+
+CALL insertar_cliente('Juan', 'Pérez', '1234567890', 'juan.perez@email.com', 'Calle 12, Ciudad Verde');
+   
+
+-- 2  actualizar_direccion_cliente
+
+DELIMITER //
+CREATE PROCEDURE actualizar_direccion_cliente(
+    IN p_id_cliente INT,
+    IN p_nueva_direccion VARCHAR(80)
+)
+BEGIN
+    UPDATE clientes
+    SET direccion = p_nueva_direccion
+    WHERE id_cliente = p_id_cliente;
+END;
+//
+DELIMITER ;
+
+CALL actualizar_direccion_cliente(1, 'Calle 10, Nueva Ciudad');
+
+-- 3 eliminar_cliente
+
+DELIMITER //
+CREATE PROCEDURE eliminar_cliente(
+    IN p_id_cliente INT
+)
+BEGIN
+    DELETE FROM clientes WHERE id_cliente = p_id_cliente;
+END;
+//
+DELIMITER ;
+
+CALL eliminar_cliente(1);
+
+-- 4  insertar_producto
+
+DELIMITER //
+CREATE PROCEDURE insertar_producto(
+    IN p_nombre VARCHAR(80),
+    IN p_cantidad INT,
+    IN p_cantidad_stock INT,
+    IN p_id_departamento INT
+)
+BEGIN
+    INSERT INTO productos (nombre, cantidad, cantidad_stock, id_departamento) 
+    VALUES (p_nombre, p_cantidad, p_cantidad_stock, p_id_departamento);
+END;
+//
+DELIMITER ;
+
+CALL insertar_producto('Leche Entera', 50, 100, 1);
+
+-- 5 actualizar_stock_producto
+
+DELIMITER //
+CREATE PROCEDURE actualizar_stock_producto(
+    IN p_id_producto INT,
+    IN p_nueva_cantidad_stock INT
+)
+BEGIN
+    UPDATE productos
+    SET cantidad_stock = p_nueva_cantidad_stock
+    WHERE id_producto = p_id_producto;
+END;
+//
+DELIMITER ;
+
+CALL actualizar_stock_producto(1, 80);
+
+-- 6  insertar_pedido
+
+DELIMITER //
+CREATE PROCEDURE insertar_pedido(
+    IN p_cantidad INT,
+    IN p_total_a_pagar INT,
+    IN p_id_cliente INT
+)
+BEGIN
+    INSERT INTO pedidos (cantidad, total_a_pagar, id_cliente) 
+    VALUES (p_cantidad, p_total_a_pagar, p_id_cliente);
+END;
+//
+DELIMITER ;
+
+CALL insertar_pedido(5, 500, 1);
+
+-- 7 actualizar_estado_pedido
+
+DELIMITER //
+CREATE PROCEDURE actualizar_estado_pedido(
+    IN p_id_pedido INT,
+    IN p_nuevo_estado VARCHAR(80)
+)
+BEGIN
+    UPDATE pedidos
+    SET estado = p_nuevo_estado
+    WHERE id_pedido = p_id_pedido;
+END;
+//
+DELIMITER ;
+
+CALL actualizar_estado_pedido(1, 'En Proceso');
+
+-- 8 calcular_total_pedido
+
+DELIMITER //
+CREATE PROCEDURE calcular_total_pedido(
+    IN p_id_pedido INT
+)
+BEGIN
+    DECLARE total INT;
+    SELECT SUM(cantidad * precio) INTO total
+    FROM productos
+    WHERE id_pedido = p_id_pedido;
+    
+    UPDATE pedidos
+    SET total_a_pagar = total
+    WHERE id_pedido = p_id_pedido;
+END;
+//
+DELIMITER ;
+
+CALL calcular_total_pedido(1);
+
+-- 9 insertar_proveedor
+
+DELIMITER //
+CREATE PROCEDURE insertar_proveedor(
+    IN p_nombre VARCHAR(80),
+    IN p_apellido VARCHAR(80),
+    IN p_cedula VARCHAR(80),
+    IN p_correo VARCHAR(80),
+    IN p_direccion VARCHAR(80)
+)
+BEGIN
+    INSERT INTO proveedores (nombre, apellido, cedula, correo, direccion) 
+    VALUES (p_nombre, p_apellido, p_cedula, p_correo, p_direccion);
+END;
+//
+DELIMITER ;
+
+CALL insertar_proveedor('Roberto', 'González', '1029384756', 'roberto.gonzalez@email.com', 'Calle 10, Barrio del Sol');
+
+-- 10 eliminar_proveedor
+
+DELIMITER //
+CREATE PROCEDURE eliminar_proveedor(
+    IN p_id_proveedor INT
+)
+BEGIN
+    DELETE FROM proveedores WHERE id_proveedores = p_id_proveedor;
+END;
+//
+DELIMITER ;
+
+CALL eliminar_proveedor(1);
+
+
+
+
+
