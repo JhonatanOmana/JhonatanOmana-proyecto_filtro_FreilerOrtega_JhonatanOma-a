@@ -1,4 +1,3 @@
-
 use filtro_t2;
 
 -- CONSULTAS 
@@ -687,180 +686,181 @@ DELIMITER ;
 
 -- TRIGGERS 
 
--- 1 insertar_cliente
-DELIMITER //
-CREATE PROCEDURE insertar_cliente(
-    IN p_nombre VARCHAR(80),
-    IN p_apellido VARCHAR(80),
-    IN p_cedula VARCHAR(80),
-    IN p_correo VARCHAR(80),
-    IN p_direccion VARCHAR(80)
-)
+-- Cambiar el delimitador para trabajar con triggers
+DELIMITER $$
+
+-- Trigger 1: Antes de insertar en "clientes", asegura que el campo "nombre" no esté vacío
+CREATE TRIGGER verificar_nombre_cliente
+BEFORE INSERT ON clientes
+FOR EACH ROW
 BEGIN
-    INSERT INTO clientes (nombre, apellido, cedula, correo, direccion) 
-    VALUES (p_nombre, p_apellido, p_cedula, p_correo, p_direccion);
-END;
-//
+    IF NEW.nombre IS NULL OR NEW.nombre = '' THEN
+        SET NEW.nombre = 'Nombre no proporcionado'; -- Asignar valor por defecto
+    END IF;
+END$$
+
+-- Trigger 2: Después de insertar en "empleado", establece "cargo" como 'No asignado' si está vacío
+CREATE TRIGGER asignar_cargo_default
+AFTER INSERT ON empleado
+FOR EACH ROW
+BEGIN
+    IF NEW.cargo IS NULL OR NEW.cargo = '' THEN
+        UPDATE empleado SET cargo = 'No asignado' WHERE id_empleado = NEW.id_empleado;
+    END IF;
+END$$
+
+-- Trigger 3: Antes de insertar en "productos", verifica que la cantidad no sea negativa
+CREATE TRIGGER validar_cantidad_producto
+BEFORE INSERT ON productos
+FOR EACH ROW
+BEGIN
+    IF NEW.cantidad < 0 THEN
+        SET NEW.cantidad = 0; -- Asignar 0 en lugar de cantidad negativa
+    END IF;
+END$$
+
+-- Trigger 4: Después de insertar en "pagos", registra el método de pago usado en un log
+CREATE TRIGGER registrar_metodo_pago
+AFTER INSERT ON pagos
+FOR EACH ROW
+BEGIN
+    INSERT INTO logs (descripcion, fecha) 
+    VALUES (CONCAT('Se usó el método de pago: ', NEW.metodo_pago), NOW());
+END$$
+
+-- Trigger 5: Antes de eliminar un registro de "clientes", guarda una copia en "respaldo_clientes"
+CREATE TRIGGER respaldo_cliente
+BEFORE DELETE ON clientes
+FOR EACH ROW
+BEGIN
+    INSERT INTO respaldo_clientes (id_cliente, nombre, apellido, cedula, correo, direccion)
+    VALUES (OLD.id_cliente, OLD.nombre, OLD.apellido, OLD.cedula, OLD.correo, OLD.direccion);
+END$$
+
+-- Trigger 6: Después de insertar en "mantenimiento", marca como "En mantenimiento" la maquinaria asociada
+CREATE TRIGGER actualizar_estado_maquinaria
+AFTER INSERT ON mantenimiento
+FOR EACH ROW
+BEGIN
+    UPDATE maquinaria SET estado = 'En mantenimiento' WHERE id_maquinaria = NEW.id_mantenimiento;
+END$$
+
+-- Trigger 7: Antes de insertar en "loguin", convierte la contraseña a minúsculas
+CREATE TRIGGER convertir_contrasena_minusculas
+BEFORE INSERT ON loguin
+FOR EACH ROW
+BEGIN
+    SET NEW.contraseña = LOWER(NEW.contraseña);
+END$$
+
+-- Trigger 8: Después de insertar en "registro", envía un mensaje al log
+CREATE TRIGGER log_registro
+AFTER INSERT ON registro
+FOR EACH ROW
+BEGIN
+    INSERT INTO logs (descripcion, fecha)
+    VALUES (CONCAT('Se registró un nuevo usuario: ', NEW.nombre1, ' ', NEW.apellido1), NOW());
+END$$
+
+-- Trigger 9: Antes de insertar en "insumos", verifica que el precio no sea menor a 0
+CREATE TRIGGER validar_precio_insumos
+BEFORE INSERT ON insumos
+FOR EACH ROW
+BEGIN
+    IF NEW.precio < 0 THEN
+        SET NEW.precio = 0.00; -- Asignar precio 0 si es menor a 0
+    END IF;
+END$$
+
+-- Trigger 10: Después de eliminar un registro en "productos", registra la eliminación en "logs"
+CREATE TRIGGER log_eliminacion_producto
+AFTER DELETE ON productos
+FOR EACH ROW
+BEGIN
+    INSERT INTO logs (descripcion, fecha)
+    VALUES (CONCAT('Se eliminó el producto: ', OLD.nombre), NOW());
+END$$
+
+-- Restaurar el delimitador a ';'
 DELIMITER ;
 
-CALL insertar_cliente('Juan', 'Pérez', '1234567890', 'juan.perez@email.com', 'Calle 12, Ciudad Verde');
-   
 
--- 2  actualizar_direccion_cliente
+-- eventos
 
-DELIMITER //
-CREATE PROCEDURE actualizar_direccion_cliente(
-    IN p_id_cliente INT,
-    IN p_nueva_direccion VARCHAR(80)
-)
-BEGIN
-    UPDATE clientes
-    SET direccion = p_nueva_direccion
-    WHERE id_cliente = p_id_cliente;
-END;
-//
-DELIMITER ;
+-- Evento 1: Borra mantenimientos antiguos
+CREATE EVENT borrar_mantenimientos
+ON SCHEDULE EVERY 1 MONTH
+DO
+    DELETE FROM mantenimiento WHERE fecha_salida < DATE_SUB(NOW(), INTERVAL 1 YEAR);
 
-CALL actualizar_direccion_cliente(1, 'Calle 10, Nueva Ciudad');
+-- Evento 2: Cambia maquinaria sin mantenimiento a "pendiente"
+CREATE EVENT maquinaria_pendiente
+ON SCHEDULE EVERY 1 WEEK
+DO
+    UPDATE maquinaria SET estado = 'pendiente' WHERE id_mantenimiento IS NULL;
 
--- 3 eliminar_cliente
+-- Evento 3: Marca pagos como "vencidos" después de un mes
+CREATE EVENT vencer_pagos
+ON SCHEDULE EVERY 1 MONTH
+DO
+    UPDATE pagos SET metodo_pago = 'vencido' WHERE metodo_pago = 'pendiente';
 
-DELIMITER //
-CREATE PROCEDURE eliminar_cliente(
-    IN p_id_cliente INT
-)
-BEGIN
-    DELETE FROM clientes WHERE id_cliente = p_id_cliente;
-END;
-//
-DELIMITER ;
+-- Evento 4: Borra insumos con cantidad en 0
+CREATE EVENT borrar_insumos_sin_stock
+ON SCHEDULE EVERY 1 MONTH
+DO
+    DELETE FROM insumos WHERE cantidad = 0;
 
-CALL eliminar_cliente(1);
+-- Evento 5: Aumenta en 5 el stock de productos con menos de 10 unidades
+CREATE EVENT aumentar_stock
+ON SCHEDULE EVERY 1 WEEK
+DO
+    UPDATE productos SET cantidad_stock = cantidad_stock + 5 WHERE cantidad_stock < 10;
 
--- 4  insertar_producto
+-- Evento 6: Borra clientes sin pedidos en el último año
+CREATE EVENT borrar_clientes_inactivos
+ON SCHEDULE EVERY 6 MONTH
+DO
+    DELETE FROM clientes WHERE id_cliente NOT IN (SELECT id_cliente FROM pedidos WHERE fecha_pedido > DATE_SUB(NOW(), INTERVAL 1 YEAR));
 
-DELIMITER //
-CREATE PROCEDURE insertar_producto(
-    IN p_nombre VARCHAR(80),
-    IN p_cantidad INT,
-    IN p_cantidad_stock INT,
-    IN p_id_departamento INT
-)
-BEGIN
-    INSERT INTO productos (nombre, cantidad, cantidad_stock, id_departamento) 
-    VALUES (p_nombre, p_cantidad, p_cantidad_stock, p_id_departamento);
-END;
-//
-DELIMITER ;
+-- Evento 7: Borra registros de login antiguos
+CREATE EVENT borrar_registros_login
+ON SCHEDULE EVERY 1 MONTH
+DO
+    DELETE FROM loguin WHERE id_loguin NOT IN (SELECT id_loguin FROM registro);
 
-CALL insertar_producto('Leche Entera', 50, 100, 1);
+-- Evento 8: Aumenta los salarios de empleados en 5%
+CREATE EVENT aumentar_salarios
+ON SCHEDULE EVERY 6 MONTH
+DO
+    UPDATE salario SET salario_total = salario_total * 1.05;
 
--- 5 actualizar_stock_producto
+-- Evento 9: Limpia pedidos no pagados después de 30 días
+CREATE EVENT borrar_pedidos_sin_pago
+ON SCHEDULE EVERY 1 MONTH
+DO
+    DELETE FROM pedidos WHERE id_pedido NOT IN (SELECT id_pedido FROM pagos) AND fecha_pedido < DATE_SUB(NOW(), INTERVAL 30 DAY);
 
-DELIMITER //
-CREATE PROCEDURE actualizar_stock_producto(
-    IN p_id_producto INT,
-    IN p_nueva_cantidad_stock INT
-)
-BEGIN
-    UPDATE productos
-    SET cantidad_stock = p_nueva_cantidad_stock
-    WHERE id_producto = p_id_producto;
-END;
-//
-DELIMITER ;
+-- Evento 10: Agrega 10 horas a los empleados cada semana
+CREATE EVENT sumar_horas
+ON SCHEDULE EVERY 1 WEEK
+DO
+    UPDATE salario SET horas = horas + 10 WHERE id_empleado IS NOT NULL;
 
-CALL actualizar_stock_producto(1, 80);
+-- Evento 11: Marca maquinaria como "inactiva" si no se usa por un mes
+CREATE EVENT marcar_maquinaria_inactiva
+ON SCHEDULE EVERY 1 MONTH
+DO
+    UPDATE maquinaria SET estado = 'inactiva' WHERE id_departamento IS NULL;
 
--- 6  insertar_pedido
+-- Evento 12: Borra proveedores sin insumos registrados
+CREATE EVENT borrar_proveedores_sin_insumos
+ON SCHEDULE EVERY 1 MONTH
+DO
+    DELETE FROM proveedores WHERE id_proveedores NOT IN (SELECT id_proveedores FROM insumos);
 
-DELIMITER //
-CREATE PROCEDURE insertar_pedido(
-    IN p_cantidad INT,
-    IN p_total_a_pagar INT,
-    IN p_id_cliente INT
-)
-BEGIN
-    INSERT INTO pedidos (cantidad, total_a_pagar, id_cliente) 
-    VALUES (p_cantidad, p_total_a_pagar, p_id_cliente);
-END;
-//
-DELIMITER ;
-
-CALL insertar_pedido(5, 500, 1);
-
--- 7 actualizar_estado_pedido
-
-DELIMITER //
-CREATE PROCEDURE actualizar_estado_pedido(
-    IN p_id_pedido INT,
-    IN p_nuevo_estado VARCHAR(80)
-)
-BEGIN
-    UPDATE pedidos
-    SET estado = p_nuevo_estado
-    WHERE id_pedido = p_id_pedido;
-END;
-//
-DELIMITER ;
-
-CALL actualizar_estado_pedido(1, 'En Proceso');
-
--- 8 calcular_total_pedido
-
-DELIMITER //
-CREATE PROCEDURE calcular_total_pedido(
-    IN p_id_pedido INT
-)
-BEGIN
-    DECLARE total INT;
-    SELECT SUM(cantidad * precio) INTO total
-    FROM productos
-    WHERE id_pedido = p_id_pedido;
-    
-    UPDATE pedidos
-    SET total_a_pagar = total
-    WHERE id_pedido = p_id_pedido;
-END;
-//
-DELIMITER ;
-
-CALL calcular_total_pedido(1);
-
--- 9 insertar_proveedor
-
-DELIMITER //
-CREATE PROCEDURE insertar_proveedor(
-    IN p_nombre VARCHAR(80),
-    IN p_apellido VARCHAR(80),
-    IN p_cedula VARCHAR(80),
-    IN p_correo VARCHAR(80),
-    IN p_direccion VARCHAR(80)
-)
-BEGIN
-    INSERT INTO proveedores (nombre, apellido, cedula, correo, direccion) 
-    VALUES (p_nombre, p_apellido, p_cedula, p_correo, p_direccion);
-END;
-//
-DELIMITER ;
-
-CALL insertar_proveedor('Roberto', 'González', '1029384756', 'roberto.gonzalez@email.com', 'Calle 10, Barrio del Sol');
-
--- 10 eliminar_proveedor
-
-DELIMITER //
-CREATE PROCEDURE eliminar_proveedor(
-    IN p_id_proveedor INT
-)
-BEGIN
-    DELETE FROM proveedores WHERE id_proveedores = p_id_proveedor;
-END;
-//
-DELIMITER ;
-
-CALL eliminar_proveedor(1);
-
-
-
-
-
+-- Evento 13: Aumenta en 1 los puntos a clientes cada mes
+CREATE EVENT sumar_puntos_clientes
+ON SCHEDULE EVERY 1 MONTH
+DO
+    UPDATE clientes SET direccion = 'actualizado' WHERE direccion IS NOT NULL;
