@@ -105,3 +105,8 @@ Se han incluido datos iniciales para poblar las tablas.
 ## Cómo Usar el Proyecto
 
 descarga cada uno de los archivos sql e insertalos en MYSQL workbench
+
+link de exposicion:
+
+
+https://drive.google.com/file/d/1ogks2toJlaqiSPjK2P3WxfzG8RYoxT0G/view?usp=sharing
