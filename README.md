@@ -1,7 +1,7 @@
 """
-# Gestión de Base de Datos AgroComercial
+# Gestión de Base de Datos AgroCat
 
-Este proyecto contiene el diseño, implementación y gestión de una base de datos para AgroComercial. 
+Este proyecto contiene el diseño, implementación y gestión de una base de datos para AgroCat. 
 Incluye la definición de tablas, inserciones de datos, triggers, procedimientos y funciones que garantizan 
 la integridad y el funcionamiento óptimo del sistema.
 
@@ -104,7 +104,4 @@ Se han incluido datos iniciales para poblar las tablas.
 
 ## Cómo Usar el Proyecto
 
-1. **Carga de Datos Iniciales:**
-   Inserta las tablas y datos proporcionados.
-   ```sql
-   source proyecto_filtro_SQL_FreilerOrtega_JhonatanOmaña.sql;
+descarga cada uno de los archivos sql e insertalos en MYSQL workbench
